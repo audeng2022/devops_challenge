@@ -6,10 +6,10 @@ ________________________________
 
 ## **Overview**
 
-This repository includes a containerized flask application, a set of Terraform files that create basic infrastructure in AWS, and a Github Actions workflow that deploys that containerized flask application on the infrastructure created from the Terraform files. The AWS infrastructure is created through Terraform files consisting of an EC2 instance which is responsible for running Docker and hosting the application which runs the container on boot, as well as the associated networking and IAM resources including an Application Load Balancer that receives HTTP traffic on port 80 and routes requests to the EC2 instance. On push to the repository, the Github Actions workflow triggers a workflow that builds the Docker image, pushes it to Amazon ECR, and deploys the new version to the EC2 instance through AWS SSM. The resulting deployment can be verified by visiting the url in a browser to find the /info route: http://<alb-dns>.com/info where <alb-dns> is the name of the load balancer dns.
+This repository includes a containerized flask application, a set of Terraform files that create basic infrastructure in AWS, and a Github Actions workflow that deploys that containerized flask application on the infrastructure created from the Terraform files. The AWS infrastructure is created through Terraform files consisting of an EC2 instance which is responsible for running Docker and hosting the application which runs the container on boot, as well as the associated networking and IAM resources including an Application Load Balancer that receives HTTP traffic on port 80 and routes requests to the EC2 instance. On push to the repository, the Github Actions workflow triggers a workflow that builds the Docker image, pushes it to Amazon ECR, and deploys the new version to the EC2 instance through AWS SSM. The resulting deployment can be verified by visiting the url in a browser to find the /info route: http://**alb-dns**.com/info where **alb-dns** is the name of the load balancer dns.
 
 There are 3 files and 2 folders in the root of this repository
-- The /infra/ folder has 3 Terraform files including main.tf and a template file; you will want to download this folder onto your computer for part 1 to generate the finfrastructure
+- The /infra/ folder has 3 Terraform files including main.tf and a template file; you will want to download this folder onto your computer for part 1 to generate the infrastructure
 - app.py, dockerfile, and requirements.txt work together to package the flask app into a Docker image. The app.py is a Flask service that exposes /info. The Docker image is built from the python base image and runs app.py, exposing port 5000 in the container. Finally the dependencies are installed from requirements.txt
 - /.github/workflows/deploy.yml is the Github Actions workflow. Once you have generated the AWS infrastructure you will activate this workflow to deploy the app to the EC2 instance
 
@@ -115,13 +115,13 @@ There are are a number of assumptions that have been made in this project. Some 
 
 ## **Improvements in Production**
 
-There are a number of improvements that can be made in a production environment, primarily in relation to security and resilience of the deployment.
+There are a number of improvements that can be made in a production environment, primarily in relation to the security and resilience of the deployment.
 
 1. Use HTTPS instead of HTTP to deliver the app. This encrypts traffic so that credentials and data aren't readable if intercepted. For instance, an ACM certificate can be added and ALB can be changed to listen on 443 instead.
 
 2. Use WAF (Web Application Firewall), which helps filter attacks and help reduce risk. WAF can be added as an attachment to ALB.
 
-3. Add metrics and alarms to help track when production is down and it is detected.
+3. Add metrics and alarms to help track when production is down so that it is detected.
 
 4. Instead of storing keys in Github secrets use Github OIDC for better security and more temporary credentials
 
