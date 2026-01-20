@@ -1,16 +1,140 @@
-# CI/CD pipeline to build Docker image, push to ECR, deploy to EC2 instance
+# @Austin Deng
+# This workflow is a CI/CD pipeline that will build Docker image, push the container image to Amazon ECR, then deploy to a EC2 instance
+# This Github Actions workflow initiates on a push to the main branch
+#
+# Prerequisites:
+# The infrastructure using Terraform in part 1 should already be created before attempting this pipeline
+# This uses AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY stored in Github Secrets within the Environment Secrets
+# This will also use ECR_REPOSITORY and ECR_NAME_TAG wich are generated in part 1 with Terraform
 
-name: Deploy to EC2
-run-name: ${{ github.actor }} is deploying changes to EC2
+name: Deploy app to EC2
+run-name: ${{ github.actor }} is deploying to EC2
 
+# On push to main branch runs workflow
 on:
   pull_request:
     branches: ["main"]
-
+    
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
 
 jobs:
-  placeholder_job:
+  build_push_deploy:
+    environment: deployment
     runs-on: ubuntu-latest
+
+    # Locates environment secrets from Github Secrets
+    # Takes AWS region, ECR repo name, EC2 Nametag, container name, and host/container ports
+    # Maps port 80 on EC2 instance to port 5000 in container
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+      EC2_NAME_TAG: ${{ vars.EC2_NAME_TAG }}
+      CONTAINER_NAME: devopsapp
+      HOST_PORT: "80"
+      CONTAINER_PORT: "5000"
+      
     steps:
-      - run: echo "Placeholder for now"
-    
+    # Checkout downloads repository for Docker to build it
+      - name: Download repository
+        uses: actions/checkout@v4
+    # Sets up AWS authentication to call AWS APIs later
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+     # Logs Docker into Amazon ECR registry from Github runner for push
+      - name: Login to Amazon ECR (for push)
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+     # Docker builds and pushes image to Amazon ECR
+      - name: Build and push image to ECR (:latest)
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+          echo "Building ${IMAGE}"
+          docker build -t "${IMAGE}" .
+          docker push "${IMAGE}"
+
+     # Using the mentioned EC2_NAME_TAG variable, locates the EC2 instance
+      - name: Find EC2 instance ID by Name tag
+        id: find_instance
+        # Error for no Name Tag
+        run: |
+          set -euo pipefail
+          if [ -z "${EC2_NAME_TAG}" ]; then
+            echo "Missing repo variable EC2_NAME_TAG (set it to the EC2 instance Name tag)."
+            exit 1
+          fi
+
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --region "${AWS_REGION}" \
+            --filters "Name=tag:Name,Values=${EC2_NAME_TAG}" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
+
+          if [ "${INSTANCE_ID}" = "None" ] || [ -z "${INSTANCE_ID}" ]; then
+            echo "Could not find a running instance with tag Name=${EC2_NAME_TAG}"
+            exit 1
+          fi
+
+          echo "instance_id=${INSTANCE_ID}" >> "${GITHUB_OUTPUT}"
+          echo "Found instance: ${INSTANCE_ID}"
+
+      # This uses SSM to deploy the app on EC2
+      - name: Deploy on EC2 through the SSM Run Command 
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          INSTANCE_ID="${{ steps.find_instance.outputs.instance_id }}"
+          IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
+          # Build the SSM parameters JSON using jq
+          PARAMS=$(jq -n \
+            --arg region "${AWS_REGION}" \
+            --arg registry "${ECR_REGISTRY}" \
+            --arg image "${IMAGE}" \
+            --arg name "${CONTAINER_NAME}" \
+            --arg hp "${HOST_PORT}" \
+            --arg cp "${CONTAINER_PORT}" \
+            '{
+              commands: [
+                "set -euo pipefail",
+                "echo Deploying image: \($image)",
+                "sudo systemctl start docker || true",
+                "aws ecr get-login-password --region \($region) | docker login --username AWS --password-stdin \($registry)",
+                "docker pull \($image)",
+                "docker rm -f \($name) || true",
+                "docker run -d --name \($name) --restart always -p \($hp):\($cp) \($image)",
+                "docker ps --filter name=\($name)"
+              ]
+            }')
+
+          COMMAND_ID=$(aws ssm send-command \
+            --region "${AWS_REGION}" \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids "${INSTANCE_ID}" \
+            --comment "Deploy ${IMAGE}" \
+            --parameters "${PARAMS}" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM CommandId: ${COMMAND_ID}"
+
+          aws ssm wait command-executed \
+            --region "${AWS_REGION}" \
+            --command-id "${COMMAND_ID}" \
+            --instance-id "${INSTANCE_ID}"
+
+          aws ssm get-command-invocation \
+            --region "${AWS_REGION}" \
+            --command-id "${COMMAND_ID}" \
+            --instance-id "${INSTANCE_ID}" \
+            --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" \
+            --output json
