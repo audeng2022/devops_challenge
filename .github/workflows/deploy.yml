@@ -1,1 +1,16 @@
 # CI/CD pipeline to build Docker image, push to ECR, deploy to EC2 instance
+
+name: Deploy to EC2
+run-name: ${{ github.actor }} is deploying changes to EC2
+
+on:
+  push:
+    branches: ["main"]
+
+
+jobs:
+  placeholder_job:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Placeholder for now"
+    
