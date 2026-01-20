@@ -1,5 +1,11 @@
-# Main Terraform configuration file to create AWS infrastructure
 # @Austin Deng
+# 
+# Main Terraform configuration file to create AWS infrastructure for deployment
+# This script spins up:
+# An ECR repository to be used to push the image in step 2
+# Networking resources including: VPC, Application Load Balancer that routes traffic the the EC2 instance, Security Group that allows port 80 on ALB, restricts SSH, and port on EC2 is only accessible to ALB
+# IAM role for EC2 instance with read-only permissions and SSM
+# Amazon Linux 2 AMI and a t3.micro EC2 instance
 
 # Set version and AWS as cloud provider for Terraform
 terraform 
