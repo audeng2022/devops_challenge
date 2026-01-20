@@ -1,5 +1,6 @@
 # Separate Variables file for reference in main.tf
 
+# Default region is us east 1, can change this to different region optionally
 variable "aws_region" 
 {
   type    = string
