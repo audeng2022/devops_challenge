@@ -1,7 +1,8 @@
+# @Austin Deng
+#
 # This is a startup script that Terraform gives the EC2 instance
 # EC2 runs it one time on first boot using cloud-init, it's job is to prepare the server to run the container
 # This ensures the instance will run the Docker container on boot
-# @Austin Deng
 
 # Run using bash and makes script easier to debug
 #!/bin/bash
