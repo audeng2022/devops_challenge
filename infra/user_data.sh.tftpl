@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euxo pipefail
 
+# @Austin Deng
+#
+# This is a startup script that Terraform gives the EC2 instance
+# EC2 runs it one time on first boot using cloud-init, it's job is to prepare the server to run the container
+# This ensures the instance will run the Docker container on boot
+
+# Run using bash and makes script easier to debug
+
 # Updates installed packages, Docker on Amazon linux, then starts Docker right away
 yum update -y
 amazon-linux-extras install docker -y
