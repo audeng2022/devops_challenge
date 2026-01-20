@@ -5,7 +5,7 @@
 # Prerequisites:
 # The infrastructure using Terraform in part 1 should already be created before attempting this pipeline
 # This uses AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY stored in Github Secrets within the Environment Secrets
-# This will also use ECR_REPOSITORY and ECR_NAME_TAG wich are generated in part 1 with Terraform
+# This will also use ECR_REPOSITORY and ECR_NAME_TAG wich are generated in part 1 with Terraform.
 
 name: Deploy app to EC2
 run-name: ${{ github.actor }} is deploying to EC2
