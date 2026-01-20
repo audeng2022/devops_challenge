@@ -13,7 +13,7 @@ run-name: ${{ github.actor }} is deploying to EC2
             
 # On push to main branch runs workflow
 on:
-  pull_request:
+  push:
     branches: ["main"]
     
 concurrency:
@@ -32,7 +32,7 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       EC2_NAME_TAG: ${{ vars.EC2_NAME_TAG }}
-      CONTAINER_NAME: flask
+      CONTAINER_NAME: devops
       HOST_PORT: "80"
       CONTAINER_PORT: "5000"
       
@@ -86,28 +86,7 @@ jobs:
 
           echo "instance_id=${INSTANCE_ID}" >> "${GITHUB_OUTPUT}"
           echo "Found instance: ${INSTANCE_ID}"
-
-      - name: Wait for instance to be Online in SSM
-        run: |
-          set -euo pipefail
-          INSTANCE_ID="${{ steps.find_instance.outputs.instance_id }}"
-
-          for i in {1..30}; do
-            PING=$(aws ssm describe-instance-information \
-              --region "${AWS_REGION}" \
-              --filters "Key=InstanceIds,Values=${INSTANCE_ID}" \
-              --query "InstanceInformationList[0].PingStatus" \
-              --output text 2>/dev/null || true)
-
-            echo "SSM PingStatus: ${PING} (attempt $i/30)"
-            if [ "${PING}" = "Online" ]; then
-              exit 0
-            fi
-            sleep 10
-          done
-
-          echo "Instance is not Online in SSM (check SSM policy + agent)."
-          exit 1
+          
       # This uses SSM to deploy the app on EC2
       # what this does is first it builds the list of commands to run on EC2 with jq creating a JSON payload for SSM
       # Then sends that command through SSM, telling it to run those commands then wait for it to finish
