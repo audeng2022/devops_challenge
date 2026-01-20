@@ -7,12 +7,10 @@ output "alb_dns_name" {
   value = aws_lb.app_alb.dns_name
 }
 
-output "ecr_repository_name"
-{
+output "ecr_repository_name" {
   value = "${var.project_name}-repo"
 }
 
-output "ecr_name_tag"
-{
+output "ecr_name_tag" {
   value = "${var.project_name}-ec2"
 }
