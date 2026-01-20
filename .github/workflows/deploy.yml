@@ -87,6 +87,9 @@ jobs:
           echo "Found instance: ${INSTANCE_ID}"
 
       # This uses SSM to deploy the app on EC2
+      # what this does is first it builds the list of commands to run on EC2 with jq creating a JSON payload for SSM
+      # Then sends that command through SSM, telling it to run those commands then wait for it to finish
+      # The commands include: logging into EC2 instance in ECR, starting the new container, then print container status
       - name: Deploy on EC2 through the SSM Run Command 
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
