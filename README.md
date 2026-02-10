@@ -1,5 +1,5 @@
 # DevOps Challenge
-Austin Deng 
+Austin Deng
 
 The goal of this DevOps technical challenge involves using Terraform to create AWS infrastructure and a Github Actions workflow to deploy a web application on an EC2 instance.
 ________________________________
